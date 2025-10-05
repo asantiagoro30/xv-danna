@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Galería XV Años</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+    body { background: linear-gradient(135deg, #ffafbd, #ffc3a0); min-height: 100vh; padding: 15px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    header { text-align: center; padding: 20px 0; color: white; }
+    header h1 { font-size: 2rem; text-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+    .upload-box { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin: 20px 0; text-align: center; }
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 20px; }
+    .photo { width: 100%; height: 140px; object-fit: cover; border-radius: 8px; }
+    button { background: #ff6b9d; color: white; border: none; padding: 12px 20px; border-radius: 50px; font-size: 1rem; cursor: pointer; margin: 8px; }
+    button:hover { background: #e55a8a; }
+    #fileInput, #cameraInput { display: none; }
+    #status { margin-top: 15px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>✨ ¡Comparte tus fotos! ✨</h1>
+      <p>Toma una foto o súbelas desde tu galería</p>
+    </header>
+
+    <div class="upload-box">
+      <button onclick="document.getElementById('cameraInput').click()">📸 Tomar Foto</button>
+      <button onclick="document.getElementById('fileInput').click()">📁 Subir de Galería</button>
+      
+      <input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="uploadImage(event)">
+      <input type="file" id="fileInput" accept="image/*" onchange="uploadImage(event)">
+      
+      <div id="status"></div>
+    </div>
+
+    <div class="gallery" id="gallery"></div>
+  </div>
+
+  <script>
+    // 🔑 PEGA TU CONFIGURACIÓN DE FIREBASE AQUÍ (reemplaza TODO este bloque)
+    const firebaseConfig = {
+      apiKey: "AIzaSyC4AY-eEhsyYJOC3z7kWjWMW_6QFxjkvL8",
+    authDomain: "xv-danna-camila.firebaseapp.com",
+    projectId: "xv-danna-camila",
+    storageBucket: "xv-danna-camila.firebasestorage.app",
+    messagingSenderId: "150896738753",
+    appId: "1:150896738753:web:883952b404ac0a6598ef40"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    async function uploadImage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      document.getElementById('status').innerText = 'Subiendo... 📤';
+      document.getElementById('status').style.color = '#ff6b9d';
+
+      try {
+        const fileName = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        await storage.ref('photos/' + fileName).put(file);
+        const url = await storage.ref('photos/' + fileName).getDownloadURL();
+        await db.collection('photos').add({ url, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+
+        document.getElementById('status').innerText = '¡Foto subida! ✅';
+        document.getElementById('status').style.color = 'green';
+        loadGallery();
+        event.target.value = '';
+      } catch (error) {
+        document.getElementById('status').innerText = 'Error. Intenta de nuevo. ❌';
+        document.getElementById('status').style.color = 'red';
+      }
+    }
+
+    async function loadGallery() {
+      const gallery = document.getElementById('gallery');
+      try {
+        const snapshot = await db.collection('photos').orderBy('timestamp', 'desc').get();
+        gallery.innerHTML = '';
+        snapshot.forEach(doc => {
+          const img = document.createElement('img');
+          img.src = doc.data().url;
+          img.className = 'photo';
+          img.onclick = () => window.open(doc.data().url, '_blank');
+          gallery.appendChild(img);
+        });
+      } catch (error) {
+        gallery.innerHTML = '<div style="color:red;text-align:center">Cargando...</div>';
+      }
+    }
+
+    loadGallery();
+    setInterval(loadGallery, 8000); // Actualiza cada 8 segundos
+  </script>
+</body>
+</html>
+
